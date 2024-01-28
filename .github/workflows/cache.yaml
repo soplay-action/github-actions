@@ -2,7 +2,7 @@ name: cache-with-bun-react
 on:
   push:
     paths:
-      - my-app/**
+      - 'my-app/**'
 
 jobs:
   cache:
