@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v4
-      - name: setup-bun
+      - name: setup-bun@latest
         uses: oven-sh/setup-bun
       - name: Cache Node.js modules
         uses: actions/cache@v3
