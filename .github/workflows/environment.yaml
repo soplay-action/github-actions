@@ -8,4 +8,4 @@ jobs:
       - name: check env & secrets
         run: |
           echo ${{ vars.level }}
-          ehco ${{ secrets.key }}
+          echo ${{ secrets.key }}
