@@ -1,0 +1,14 @@
+name: matrix
+on: push
+
+jobs:
+  get-matrix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        version: [12, 14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: |
+          echo ${{ matrix.os }}
+          echo ${{ matrix.version }}
