@@ -23,4 +23,16 @@ jobs:
       - name: gh auth login
         run: echo ${{ secrets.PERSONAL_ACCESS_TOKEN }} | gh auth login --with-token
       - name: create-repo
+        id: create-repo
         run: gh repo create soplay-action/${{ inputs.prefix }}-${{ inputs.name }} --public --add-readme
+      - name: webhook notification ( Discord )
+        uses: sarisia/actions-status-discord@v1
+        if: always()
+        with:
+          webhook: ${{ secrets.WEBHOOK_URL }}
+          title: '레포 생성 `${{steps.create-repo.outcome}}`'
+          content: <@${{ secrets.DISCORD_ID }}>
+          description: |
+            RepoName : `${{ inputs.prefix }}-${{ inputs.name }}`
+            RepoLink :  [soplay-action/${{ inputs.prefix }}-${{ inputs.name }}](https://github.com/soplay-action/${{ inputs.prefix }}-${{ inputs.name }})
+            Result : `${{steps.create-repo.outcome}}`
