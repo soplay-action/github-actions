@@ -30,9 +30,10 @@ jobs:
         if: always()
         with:
           webhook: ${{ secrets.WEBHOOK_URL }}
-          title: '레포 생성 `${{steps.create-repo.outcome}}`'
+          nodetail: true
+          title: '레포 생성'
           content: <@${{ secrets.DISCORD_ID }}>
+          status: ${{ steps.create-repo.outcome }}
           description: |
             RepoName : `${{ inputs.prefix }}-${{ inputs.name }}`
             RepoLink :  [soplay-action/${{ inputs.prefix }}-${{ inputs.name }}](https://github.com/soplay-action/${{ inputs.prefix }}-${{ inputs.name }})
-            Result : `${{steps.create-repo.outcome}}`
