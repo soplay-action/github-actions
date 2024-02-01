@@ -41,5 +41,6 @@ jobs:
           webhook: ${{secrets.WEBHOOK_URL}}
           title: 'Level : ${{needs.get-keyword.outputs.level}}'
           nodetail: true
-          description: 'issue url : (${{github.event.issue.html_url}})[${{github.event.issue.html_url}}]'
+          description: |
+            issue url : [${{github.event.issue.html_url}}](${{github.event.issue.html_url}})
           color: '28a745'
