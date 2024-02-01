@@ -6,6 +6,8 @@ on:
 jobs:
   get-keyword:
     runs-on: ubuntu-latest
+    outputs:
+      level: ${{steps.get-keyword.outputs.level}}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -23,3 +25,17 @@ jobs:
       - name: get-output
         run: |
           echo ${{steps.get-keyword.outputs.level}}
+  webhook:
+    needs: get-keyword
+    if: needs.get-keyword.outputs.level != 'Undefined'
+    runs-on: ubuntu-latest
+    environment: ${{needs.get-keyword.outputs.level}}
+    steps:
+      - name: Discord-notifiy
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{secrets.WEBHOOK_URL}}
+          title: 'Level : ${{needs.get-keyword.outputs.level}}'
+          nodetail: true
+          description: 'issue url : [${{github.event.issue.html_url}}](${{github.event.issue.html_url}})'
+          color: '28a745'
