@@ -89,6 +89,7 @@ jobs:
           --set image.tag=${{ github.sha }} \
           --set image.repository=${{ secrets.DOCKER_USERNAME }}/${{ vars.REPOSITORY }}
       - name: notify
+        if: always()
         uses: sarisia/actions-status-discord@v1
         with:
           webhook: ${{ secrets.WEBHOOK_URL }}
