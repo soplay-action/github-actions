@@ -16,4 +16,4 @@ spec:
         - name: react-app
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           ports:
-            - containerPort: 3000
+            - containerPort: 80

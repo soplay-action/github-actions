@@ -74,6 +74,8 @@ jobs:
         environment: ['dev-release']
     environment: ${{matrix.environment}}
     steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
       - name: setup kubectle
         uses: azure/setup-kubectl@v3
       - name: setup helm
