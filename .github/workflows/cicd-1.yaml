@@ -80,6 +80,7 @@ jobs:
         uses: azure/setup-helm@v3
       - name: setup kubeconfig
         run: |
+          mkdir -p ~/.kube
           echo "${{secrets.KUBE_CONFIG_DATA}}" > ~/.kube/config
       - name: deploy
         id: status
