@@ -115,7 +115,7 @@ jobs:
           webhook: ${{ secrets.WEBHOOK_URL }}
           title: '${{ matrix.environment }} 환경 배포'
           description: |
-            ENVIRONMENT : `${{ vars.SUFFIX }}`
+            ENVIRONMENT : `${{ matrix.environment }}`
             Deploy Result : `${{ steps.status.outcome }}`
             IMAGE : `${{ secrets.DOCKER_USERNAME }}/${{ vars.REPOSITORY }}:${{ github.sha }}`
 
