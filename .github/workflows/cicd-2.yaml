@@ -45,7 +45,7 @@ jobs:
         id: set-env
         run: |
           echo ${{ github.base_ref }}
-          ehco 'environment=dev' >> $GITHUB_OUTPUT
+          echo 'environment=dev' >> $GITHUB_OUTPUT
 
           if [[ ${{ github.base_ref }} == 'master' ]]; then
             echo 'environment=prod' >> $GITHUB_OUTPUT
