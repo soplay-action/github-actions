@@ -1,8 +1,8 @@
-name: cicd-1
+name: cicd-2
 on:
   pull_request:
     types: [opened, synchronize, closed]
-    branches: [dev]
+    branches: [dev, master]
     paths:
       - 'my-app/**'
 
@@ -35,13 +35,31 @@ jobs:
       - name: build test
         run: bun run build
         working-directory: ${{env.react-dir}}
-
-  image-build:
+  set-environment:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    # permissions: # aws actions 사용시 필요
-    # id-token: write
-    # contents: read
+    outputs:
+      environment: '${{ steps.set-env.outputs.environment }}'
+    steps:
+      - name: set-env
+        id: set-env
+        run: |
+          echo ${{ github.base_ref }}
+          echo 'environment=dev' >> $GITHUB_OUTPUT
+
+          if [[ ${{ github.base_ref }} == 'master' ]]; then
+            echo 'environment=prod' >> $GITHUB_OUTPUT
+          fi
+      - name: check-env
+        run: echo ${{ steps.set-env.outputs.environment }}
+
+  image-build:
+    runs-on: ubuntu-latest
+    needs: [set-environment]
+    strategy:
+      matrix:
+        environment: ['${{ needs.set-environment.outputs.environment }}']
+    environment: ${{ matrix.environment }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -68,10 +86,10 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: image-build
+    needs: [set-environment, image-build]
     strategy:
       matrix:
-        environment: ['dev-release']
+        environment: ['${{ needs.set-environment.outputs.environment }}']
     environment: ${{matrix.environment}}
     steps:
       - name: checkout repository
@@ -83,7 +101,7 @@ jobs:
       - name: setup kubeconfig
         run: |
           mkdir -p ~/.kube
-          echo "${{secrets.KUBE_CONFIG_DATA}}" > ~/.kube/config
+          echo '${{secrets.KUBE_CONFIG_DATA}}' > ~/.kube/config
       - name: deploy
         id: status
         run: |
@@ -95,11 +113,25 @@ jobs:
         uses: sarisia/actions-status-discord@v1
         with:
           webhook: ${{ secrets.WEBHOOK_URL }}
-          title: '${{ vars.SUFFIX }} 환경 배포'
+          title: '${{ matrix.environment }} 환경 배포'
           description: |
-            ENVIRONMENT : `${{ vars.SUFFIX }}`
+            ENVIRONMENT : `${{ matrix.environment }}`
             Deploy Result : `${{ steps.status.outcome }}`
-            REPO : `${{ github.repository }}`
-            PR : `${{ github.event.pull_request.html_url }}`
-            SHA : `${{ github.event.pull_request.head.sha }}`
             IMAGE : `${{ secrets.DOCKER_USERNAME }}/${{ vars.REPOSITORY }}:${{ github.sha }}`
+
+  create-pr:
+    if: needs.set-environment.outputs.environment == 'dev'
+    runs-on: ubuntu-latest
+    needs: [set-environment, deploy]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: gh auth login
+        run: echo ${{ secrets.PERSONAL_ACCESS_TOKEN }} | gh auth login --with-token
+      - name: create branch
+        run: |
+          git checkout -b release/${{ github.run_id }}
+          git push origin release/${{ github.run_id }}
+      - name: create pr
+        run: |
+          gh pr create --base master --head release/${{ github.run_id }} --title 'release/${{ github.run_id }} -> master' --body 'release pr'
