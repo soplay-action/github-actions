@@ -28,7 +28,7 @@ function App() {
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>
         <p>
-          Learn GithubActions cicd3-vks2
+          Learn GithubActions cicd4-vks1
         </p>
       </div>
       <p className='read-the-docs'>
