@@ -99,7 +99,4 @@ jobs:
           description: |
             ENVIRONMENT : `${{ vars.SUFFIX }}`
             Deploy Result : `${{ steps.status.outcome }}`
-            REPO : `${{ github.repository }}`
-            PR : `${{ github.event.pull_request.html_url }}`
-            SHA : `${{ github.event.pull_request.head.sha }}`
             IMAGE : `${{ secrets.DOCKER_USERNAME }}/${{ vars.REPOSITORY }}:${{ github.sha }}`
