@@ -39,7 +39,7 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
-      environment:
+      environment: '${{ steps.set-env.outputs.environment }}'
     steps:
       - name: set-env
         id: set-env
