@@ -1,0 +1,148 @@
+name: cicd-3
+on:
+  push:
+    paths:
+      - 'my-app/**'
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+    types: [opened, synchronize, closed]
+    branches: [dev, master]
+    paths:
+      - 'my-app/**'
+
+env:
+  react-dir: my-app
+
+jobs:
+  test:
+    if: github.event.action == 'opened' || github.event.action == 'synchronize'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: setup-bun
+        uses: oven-sh/setup-bun@v1
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          key: ${{runner.os}}-bun-${{hashFiles('**/bun.lockb')}}
+          restore-keys: ${{runner.os}}-bun-
+          path: |
+            ~/.bun
+            **/node_modules
+      - name: install deps
+        run: bun i
+        working-directory: ${{env.react-dir}}
+      - name: run test
+        run: bun run test
+        working-directory: ${{env.react-dir}}
+      - name: build test
+        run: bun run build
+        working-directory: ${{env.react-dir}}
+  set-environment:
+    if: github.event.pull_request.merged == true || github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    outputs:
+      environment: '${{ steps.set-env.outputs.environment }}'
+    steps:
+      - name: set-env
+        id: set-env
+        run: |
+          if [[ ${{ github.ref_type }} == 'tag' ]]; then
+            echo 'environment=qa' >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [[ ${{ github.ref_type }} == 'branch' ]]; then
+            echo 'environment=dev' >> $GITHUB_OUTPUT
+            if [[ ${{ github.base_ref }} == 'master' ]]; then
+              echo 'environment=prod' >> $GITHUB_OUTPUT
+            fi    
+          fi
+
+      - name: check-env
+        run: echo ${{ steps.set-env.outputs.environment }}
+
+  image-build:
+    runs-on: ubuntu-latest
+    needs: [set-environment]
+    strategy:
+      matrix:
+        environment: ['${{ needs.set-environment.outputs.environment }}']
+    environment: ${{ matrix.environment }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: registry login
+        uses: docker/login-action@v3
+        with:
+          username: ${{secrets.DOCKER_USERNAME}}
+          password: ${{secrets.DOCKER_ACCESS_TOKEN}}
+      - name: build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{secrets.DOCKER_USERNAME}}/${{vars.REPOSITORY}}:${{github.sha}}
+          platforms: |
+            linux/amd64
+            linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [set-environment, image-build]
+    strategy:
+      matrix:
+        environment: ['${{ needs.set-environment.outputs.environment }}']
+    environment: ${{matrix.environment}}
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+      - name: setup kubectle
+        uses: azure/setup-kubectl@v3
+      - name: setup helm
+        uses: azure/setup-helm@v3
+      - name: setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo '${{secrets.KUBE_CONFIG_DATA}}' > ~/.kube/config
+      - name: deploy
+        id: status
+        run: |
+          helm upgrade --install my-app kubernetes/my-app --create-namespace --namespace my-app-${{ vars.SUFFIX }}  \
+          --set image.tag=${{ github.sha }} \
+          --set image.repository=${{ secrets.DOCKER_USERNAME }}/${{ vars.REPOSITORY }}
+      - name: notify
+        if: always()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.WEBHOOK_URL }}
+          title: '${{ matrix.environment }} 환경 배포'
+          description: |
+            ENVIRONMENT : `${{ matrix.environment }}`
+            Deploy Result : `${{ steps.status.outcome }}`
+            IMAGE : `${{ secrets.DOCKER_USERNAME }}/${{ vars.REPOSITORY }}:${{ github.sha }}`
+
+  create-pr:
+    if: needs.set-environment.outputs.environment == 'qa'
+    runs-on: ubuntu-latest
+    needs: [set-environment, deploy]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: gh auth login
+        run: echo ${{ secrets.PERSONAL_ACCESS_TOKEN }} | gh auth login --with-token
+      - name: create branch
+        run: |
+          git checkout -b release/${{ github.ref_name }}
+          git push origin release/${{ github.ref_name }}
+      - name: create pr
+        run: |
+          gh pr create --base master --head release/${{ github.ref_name }} --title 'release/${{ github.ref_name }} -> master' --body 'release pr'
